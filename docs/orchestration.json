@@ -1,0 +1,13 @@
+{
+  "name": "agentlease",
+  "type": "local-cli",
+  "network": false,
+  "ledger": ".agentlease/ledger.json",
+  "commands": ["grant", "list", "check", "revoke"],
+  "checks": [
+    "npm run check",
+    "npm test",
+    "npm run smoke",
+    "npm run package:smoke"
+  ]
+}
