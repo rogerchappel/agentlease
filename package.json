@@ -13,7 +13,8 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -37,7 +38,15 @@
     "node": ">=20"
   },
   "devDependencies": {
-    "@types/node": "^20.19.0",
+    "@types/node": "^20.19.41",
     "typescript": "^5.8.3"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rogerchappel/agentlease.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rogerchappel/agentlease/issues"
+  },
+  "homepage": "https://github.com/rogerchappel/agentlease#readme"
 }
