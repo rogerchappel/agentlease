@@ -51,3 +51,13 @@ These links assume this README has been copied to the generated repository root.
 ## License
 
 MIT
+
+## Verification
+
+```bash
+npm test              # Run tests
+npm run check         # Type-check only
+npm run build         # TypeScript compilation
+npm run package:smoke # Verify npm pack
+npm run release:check # Full release checklist
+```
