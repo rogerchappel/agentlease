@@ -58,7 +58,7 @@ MIT
 npm test              # Run tests
 npm run check         # Type-check only
 npm run build         # TypeScript compilation
-npm run package:smoke # Verify npm pack
+npm run package:smoke # Verify npm pack contents
 npm run release:check # Full release checklist
 ```
 
@@ -70,3 +70,5 @@ Before publishing or tagging a release, run the local verification path that mat
 - `npm run package:smoke`
 
 The release checklist in `docs/release-readiness.md` captures the package surface, CLI bins, and reviewer notes for future release PRs.
+`npm run package:smoke` asserts that the packed tarball includes the compiled CLI,
+release-readiness docs, and public support files.
