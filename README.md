@@ -26,6 +26,13 @@ agentlease revoke docs-pass
 Use `--ledger path/to/ledger.json` or `AGENTLEASE_LEDGER` to choose a ledger
 outside the default `.agentlease/ledger.json`.
 
+## Limitations
+
+- `agentlease` answers whether a command/path pair has a matching local lease; it does not sandbox or block the command by itself.
+- Lease checks are only as current as the JSON ledger passed to the CLI. Keep the ledger in the same workspace policy flow that grants the permission.
+- Path matching is intended for repository-relative work. Review leases carefully before using broad paths such as `.` or a parent directory.
+- The CLI does not contact remote policy services, rotate credentials, or replace human approval for destructive actions.
+
 ## Verify
 
 Run the local validation script before opening a pull request:
