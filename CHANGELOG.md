@@ -11,6 +11,11 @@ format and uses semantic versioning when versioned releases are published.
 
 - Initial project setup.
 
+### Changed
+
+- Clarified README security guidance.
+- Cleaned duplicate CI package-smoke fallback steps.
+
 ## Release Links
 
 - Unreleased:
