@@ -10,8 +10,17 @@ deterministic allow/deny decisions; it does not enforce permissions by itself.
 ## Install
 
 ```sh
+npm install agentlease
+```
+
+For local development:
+
+```sh
+git clone https://github.com/rogerchappel/agentlease.git
+cd agentlease
 npm install
 npm run build
+npm run smoke
 ```
 
 ## Use

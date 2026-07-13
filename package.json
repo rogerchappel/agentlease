@@ -15,11 +15,12 @@
     "dist",
     "docs",
     "README.md",
-    "LICENSE",
-    "SECURITY.md",
     "CHANGELOG.md",
     "CONTRIBUTING.md",
-    "CODE_OF_CONDUCT.md"
+    "SECURITY.md",
+    "CODE_OF_CONDUCT.md",
+    "ROADMAP.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
