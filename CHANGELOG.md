@@ -14,8 +14,6 @@ format and uses semantic versioning when versioned releases are published.
 ## Release Links
 
 - Unreleased:
-  `https://github.com/rogerchappel/agentlease/compare/...HEAD`
+  `https://github.com/rogerchappel/agentlease/compare/v0.1.0...HEAD`
 - Latest release:
   `https://github.com/rogerchappel/agentlease/releases/latest`
-
-Replace placeholder links once the first release tag exists.

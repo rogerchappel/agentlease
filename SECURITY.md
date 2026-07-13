@@ -2,18 +2,10 @@
 
 ## Supported Versions
 
-Replace this section with the supported versions for `agentlease`.
-
-Example:
-
-```md
 | Version | Supported |
 | --- | --- |
-| .x | Yes |
-| < .0 | No |
-```
-
-If the project does not publish versioned releases yet, say that clearly.
+| 0.x | Yes |
+| Earlier unpublished snapshots | No |
 
 ## Reporting a Vulnerability
 
