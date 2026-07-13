@@ -9,11 +9,18 @@ import { revokeLease } from "./revoke.js";
 import { withStatus } from "./status.js";
 import type { CheckInput, GrantInput } from "./types.js";
 
+const VERSION = "0.1.0";
+
 async function main(argv: string[]): Promise<number> {
   try {
     const command = argv[0];
     if (!command || command === "--help" || command === "-h") {
       process.stdout.write(helpText());
+      return 0;
+    }
+
+    if (command === "--version" || command === "-v") {
+      process.stdout.write(`${VERSION}\n`);
       return 0;
     }
 

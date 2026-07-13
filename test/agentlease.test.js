@@ -1,7 +1,22 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 
 import { addLease, checkLedger, createLease, emptyLedger, revokeLease } from "../dist/index.js";
+
+function runCli(args) {
+  return spawnSync(process.execPath, ["dist/cli.js", ...args], { encoding: "utf8" });
+}
+
+test("cli help and version exit successfully", () => {
+  const help = runCli(["--help"]);
+  assert.equal(help.status, 0, help.stderr);
+  assert.match(help.stdout, /Usage:/);
+
+  const version = runCli(["--version"]);
+  assert.equal(version.status, 0, version.stderr);
+  assert.match(version.stdout, /^0\.1\.0/);
+});
 
 test("granted leases allow matching scoped checks", () => {
   const lease = createLease({
