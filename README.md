@@ -32,6 +32,10 @@ agentlease list
 agentlease revoke docs-pass
 ```
 
+Scope options on `grant` (`--command`, `--path`, `--domain`, and `--env`) may
+be repeated to add multiple values. Every option requires a value; unknown
+options and option-like missing values are rejected with exit code 2.
+
 Use `--ledger path/to/ledger.json` or `AGENTLEASE_LEDGER` to choose a ledger
 outside the default `.agentlease/ledger.json`.
 
