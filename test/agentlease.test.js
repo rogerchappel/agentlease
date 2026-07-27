@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 
 import { addLease, checkLedger, createLease, emptyLedger, revokeLease } from "../dist/index.js";
@@ -16,6 +19,49 @@ test("cli help and version exit successfully", () => {
   const version = runCli(["--version"]);
   assert.equal(version.status, 0, version.stderr);
   assert.match(version.stdout, /^0\.1\.0/);
+});
+
+test("cli rejects unknown options and option-like missing values", () => {
+  const malformed = [
+    ["grant", "--name", "demo", "--command", "--ttl", "2h"],
+    ["check", "--command", "--path", "docs"],
+    ["list", "--bogus", "value"],
+    ["revoke", "demo", "--bogus", "value"]
+  ];
+
+  for (const args of malformed) {
+    const result = runCli(args);
+    assert.equal(result.status, 2, `${args.join(" ")}\n${result.stderr}`);
+    assert.match(result.stderr, /^agentlease: .+/);
+    assert.equal(result.stdout, "");
+  }
+});
+
+test("cli accepts repeated grant scope options", () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "agentlease-cli-"));
+  const ledgerPath = path.join(directory, "ledger.json");
+
+  try {
+    const result = runCli([
+      "grant",
+      "--name", "release",
+      "--command", "npm test",
+      "--command", "npm run build",
+      "--path", "src",
+      "--path", "test",
+      "--ledger", ledgerPath
+    ]);
+    assert.equal(result.status, 0, result.stderr);
+
+    const ledger = JSON.parse(readFileSync(ledgerPath, "utf8"));
+    assert.deepEqual(ledger.leases[0].scope.commands, ["npm test", "npm run build"]);
+    assert.deepEqual(ledger.leases[0].scope.paths, [
+      path.resolve("src"),
+      path.resolve("test")
+    ]);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test("granted leases allow matching scoped checks", () => {
