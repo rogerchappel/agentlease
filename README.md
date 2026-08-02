@@ -39,6 +39,11 @@ options and option-like missing values are rejected with exit code 2.
 Use `--ledger path/to/ledger.json` or `AGENTLEASE_LEDGER` to choose a ledger
 outside the default `.agentlease/ledger.json`.
 
+The ledger is validated whenever it is read. If it contains invalid JSON or a
+malformed lease, commands stop with a stable `agentlease:` error instead of
+using partial data. Repair the reported field or move the corrupt ledger aside
+and grant replacement leases; a missing ledger is recreated on the next grant.
+
 ## Limitations
 
 - `agentlease` answers whether a command/path pair has a matching local lease; it does not sandbox or block the command by itself.
