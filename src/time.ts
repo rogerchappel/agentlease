@@ -20,11 +20,21 @@ export function parseTtl(ttl: string): number {
     throw new UsageError("TTL must be a positive safe integer.");
   }
 
-  return amount * UNIT_MS[match[2]];
+  const milliseconds = amount * UNIT_MS[match[2]];
+  if (!Number.isSafeInteger(milliseconds)) {
+    throw new UsageError("TTL is too large to represent safely in milliseconds.");
+  }
+
+  return milliseconds;
 }
 
 export function addTtl(now: Date, ttl: string): Date {
-  return new Date(now.getTime() + parseTtl(ttl));
+  const expiresAt = new Date(now.getTime() + parseTtl(ttl));
+  if (!Number.isFinite(expiresAt.getTime())) {
+    throw new UsageError("TTL produces an expiry outside the supported date range.");
+  }
+
+  return expiresAt;
 }
 
 export function isExpired(expiresAt: string, now: Date): boolean {
