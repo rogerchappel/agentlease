@@ -44,6 +44,15 @@ malformed lease, commands stop with a stable `agentlease:` error instead of
 using partial data. Repair the reported field or move the corrupt ledger aside
 and grant replacement leases; a missing ledger is recreated on the next grant.
 
+`grant` and `revoke` serialize updates from concurrent CLI processes with a
+ledger-adjacent lock file, then atomically replace the ledger after writing the
+complete new JSON to a temporary file. Successfully reported mutations are
+therefore retained without exposing partial JSON to readers. Lock contention is
+retried for up to 5 seconds; after that the command fails without changing the
+ledger and reports the lock path. A process terminated while holding the lock
+may leave that `.lock` file behind; remove it only after confirming no
+`agentlease` mutation is still running.
+
 ## Limitations
 
 - `agentlease` answers whether a command/path pair has a matching local lease; it does not sandbox or block the command by itself.
