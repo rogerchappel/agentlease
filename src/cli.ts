@@ -4,7 +4,7 @@ import process from "node:process";
 import { checkLedger } from "./check.js";
 import { UsageError } from "./errors.js";
 import { addLease, createLease } from "./grant.js";
-import { readLedger, resolveLedgerPath, writeLedger } from "./ledger.js";
+import { mutateLedger, readLedger, resolveLedgerPath } from "./ledger.js";
 import { revokeLease } from "./revoke.js";
 import { withStatus } from "./status.js";
 import type { CheckInput, GrantInput } from "./types.js";
@@ -30,7 +30,7 @@ async function main(argv: string[]): Promise<number> {
 
     if (command === "grant") {
       const lease = createLease(parseGrant(args));
-      await writeLedger(resolveLedgerPath(ledgerPath), addLease(await readLedger(resolveLedgerPath(ledgerPath)), lease));
+      await mutateLedger(resolveLedgerPath(ledgerPath), (ledger) => addLease(ledger, lease));
       process.stdout.write(`${JSON.stringify(lease, null, 2)}\n`);
       return 0;
     }
@@ -53,7 +53,7 @@ async function main(argv: string[]): Promise<number> {
         throw new UsageError("revoke requires a lease id or name.");
       }
 
-      await writeLedger(resolveLedgerPath(ledgerPath), revokeLease(await readLedger(resolveLedgerPath(ledgerPath)), selector));
+      await mutateLedger(resolveLedgerPath(ledgerPath), (ledger) => revokeLease(ledger, selector));
       process.stdout.write(`revoked ${selector}\n`);
       return 0;
     }
