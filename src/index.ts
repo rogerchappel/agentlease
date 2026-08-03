@@ -13,7 +13,7 @@ export {
 export { LedgerError, UsageError } from "./errors.js";
 export { checkLedger } from "./check.js";
 export { addLease, createLease } from "./grant.js";
-export { defaultLedgerPath, emptyLedger, readLedger, resolveLedgerPath, writeLedger } from "./ledger.js";
+export { defaultLedgerPath, emptyLedger, mutateLedger, readLedger, resolveLedgerPath, writeLedger } from "./ledger.js";
 export { matchesLease } from "./match.js";
 export { isPathInside, normalizeLedgerPath } from "./paths.js";
 export { findLease, revokeLease } from "./revoke.js";
