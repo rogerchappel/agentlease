@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -9,6 +9,17 @@ import { addLease, checkLedger, createLease, emptyLedger, revokeLease } from "..
 
 function runCli(args) {
   return spawnSync(process.execPath, ["dist/cli.js", ...args], { encoding: "utf8" });
+}
+
+function runCliAsync(args) {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, ["dist/cli.js", ...args]);
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8").on("data", (chunk) => { stdout += chunk; });
+    child.stderr.setEncoding("utf8").on("data", (chunk) => { stderr += chunk; });
+    child.on("close", (status) => resolve({ status, stdout, stderr }));
+  });
 }
 
 test("cli help and version exit successfully", () => {
@@ -59,6 +70,42 @@ test("cli accepts repeated grant scope options", () => {
       path.resolve("src"),
       path.resolve("test")
     ]);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("concurrent CLI mutations retain every successful grant and revoke", async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "agentlease-concurrent-"));
+  const ledgerPath = path.join(directory, "ledger.json");
+  const count = 16;
+
+  try {
+    const initial = await Promise.all(Array.from({ length: count }, (_, index) =>
+      runCliAsync(["grant", "--name", `old-${index}`, "--command", `old-${index}`, "--ledger", ledgerPath])
+    ));
+    for (const result of initial) {
+      assert.equal(result.status, 0, result.stderr);
+    }
+
+    const mutations = await Promise.all([
+      ...Array.from({ length: count }, (_, index) =>
+        runCliAsync(["revoke", `old-${index}`, "--ledger", ledgerPath])
+      ),
+      ...Array.from({ length: count }, (_, index) =>
+        runCliAsync(["grant", "--name", `new-${index}`, "--command", `new-${index}`, "--ledger", ledgerPath])
+      )
+    ]);
+    for (const result of mutations) {
+      assert.equal(result.status, 0, result.stderr);
+    }
+
+    const ledger = JSON.parse(readFileSync(ledgerPath, "utf8"));
+    assert.equal(ledger.leases.length, count * 2);
+    for (let index = 0; index < count; index += 1) {
+      assert.ok(ledger.leases.find((lease) => lease.name === `old-${index}`)?.revokedAt);
+      assert.ok(ledger.leases.find((lease) => lease.name === `new-${index}`));
+    }
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
