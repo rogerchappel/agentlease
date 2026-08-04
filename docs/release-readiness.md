@@ -2,6 +2,14 @@
 
 Use this checklist before cutting a release or asking a reviewer to trust the package contents.
 
+## npm trusted publishing
+
+Before the first tag release, an npm package owner must create the `agentlease` package once if it does not yet exist, then configure an npm trusted publisher for GitHub Actions using repository `rogerchappel/agentlease`, workflow filename `release.yml`, and the npm `latest` tag. The workflow's `id-token: write` permission and npm 11.5.2 provide provenance-backed OIDC publication; no long-lived npm token is required.
+
+Tagged releases publish the exact tarball produced and inspected by `npm pack` before attaching that same file to the GitHub release. Pull-request and manually dispatched release dry runs only validate and preview notes; they never publish.
+
+If npm publication succeeds but GitHub release creation fails, do not republish or move the tag. Confirm the package version and provenance on npm, then rerun only the GitHub release creation with the existing tag and exact tarball rebuilt from that tag. If npm publication fails, no GitHub release is created; fix the trusted-publisher or package bootstrap configuration and rerun the tag workflow only while that version remains unpublished.
+
 ## Public Package Surface
 
 - Package: `agentlease`
