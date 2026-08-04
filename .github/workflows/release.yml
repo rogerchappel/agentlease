@@ -25,6 +25,8 @@ jobs:
           node-version: 22
           cache: npm
           registry-url: https://registry.npmjs.org
+      - name: Install trusted-publishing npm CLI
+        run: npm install --global npm@11.5.2
       - name: Install dependencies
         run: npm ci
       - name: Install ReleaseBox
@@ -38,10 +40,19 @@ jobs:
       - name: Run release checks
         run: npm run release:check
       - name: Build package
-        run: npm pack
+        id: pack
+        run: |
+          npm pack --json > pack-result.json
+          node --input-type=module -e '
+            import { appendFileSync, readFileSync } from "node:fs";
+            const [pack] = JSON.parse(readFileSync("pack-result.json", "utf8"));
+            appendFileSync(process.env.GITHUB_OUTPUT, `tarball=${pack.filename}\n`);
+          '
+      - name: Publish inspected package to npm
+        run: npm publish "${{ steps.pack.outputs.tarball }}" --provenance --access public
       - name: Generate release notes
         run: node /tmp/releasebox/bin/releasebox.js notes . > RELEASE_NOTES.md
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${GITHUB_REF_NAME}" --notes-file RELEASE_NOTES.md *.tgz
+        run: gh release create "${GITHUB_REF_NAME}" --notes-file RELEASE_NOTES.md "${{ steps.pack.outputs.tarball }}"
