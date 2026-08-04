@@ -22,6 +22,23 @@ const output = execFileSync("npm", ["pack", "--dry-run", "--json"], {
 });
 
 const [pack] = JSON.parse(output);
+const packageJson = JSON.parse(await readFile("package.json", "utf8"));
+const expectedName = "agentlease";
+const expectedFilename = `${expectedName}-${packageJson.version}.tgz`;
+
+const identityErrors = [
+  pack.name === packageJson.name ? null : `packed name ${pack.name} does not match package.json name ${packageJson.name}`,
+  pack.name === expectedName ? null : `packed name ${pack.name} does not match documented install identity ${expectedName}`,
+  pack.version === packageJson.version ? null : `packed version ${pack.version} does not match package.json version ${packageJson.version}`,
+  pack.filename === expectedFilename ? null : `packed filename ${pack.filename} does not match ${expectedFilename}`
+].filter(Boolean);
+
+if (identityErrors.length > 0) {
+  console.error("agentlease package smoke failed; package identity mismatch:");
+  for (const error of identityErrors) console.error(`- ${error}`);
+  process.exit(1);
+}
+
 const publishedFiles = new Set(pack.files.map((file) => file.path));
 const missing = expectedFiles.filter((file) => !publishedFiles.has(file));
 
@@ -33,7 +50,6 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
-const packageJson = JSON.parse(await readFile("package.json", "utf8"));
 if (packageJson.bin?.agentlease !== "./dist/cli.js") {
   console.error("agentlease package smoke failed; expected agentlease bin in package metadata.");
   process.exit(1);
