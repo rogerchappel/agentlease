@@ -8,6 +8,7 @@ const expectedFiles = [
   "dist/index.js",
   "dist/index.d.ts",
   "docs/release-readiness.md",
+  "docs/publication-state.json",
   "README.md",
   "LICENSE",
   "CHANGELOG.md",

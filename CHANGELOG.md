@@ -10,11 +10,13 @@ format and uses semantic versioning when versioned releases are published.
 ### Added
 
 - Initial project setup.
+- Added a machine-readable npm publication state and an automated README install-claim check.
 
 ### Changed
 
 - Clarified README security guidance.
 - Cleaned duplicate CI package-smoke fallback steps.
+- Replaced the unavailable npm install command with verified source-bootstrap instructions.
 
 ## Release Links
 
