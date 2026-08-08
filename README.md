@@ -9,19 +9,22 @@ deterministic allow/deny decisions; it does not enforce permissions by itself.
 
 ## Install
 
-```sh
-npm install agentlease
-```
-
-For local development:
+`agentlease` is not currently published to npm. Until the first publication,
+install and run it from a source checkout:
 
 ```sh
 git clone https://github.com/rogerchappel/agentlease.git
 cd agentlease
-npm install
+npm ci
 npm run build
 npm run smoke
+npm link
 ```
+
+After the package is published, this bootstrap path will be replaced by
+`npm install agentlease`. Publication status is recorded in
+[`docs/publication-state.json`](docs/publication-state.json) and checked by
+`npm run docs:check`.
 
 ## Use
 
