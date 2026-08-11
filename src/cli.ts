@@ -118,8 +118,9 @@ function readRepeated(args: readonly string[], name: string): string[] {
 
 function validateCommandArgs(command: string, args: readonly string[]): void {
   const common = ["--ledger"];
+  const scopeOptions = ["--command", "--path", "--domain", "--env"];
   const optionsByCommand: Record<string, readonly string[]> = {
-    grant: ["--name", "--ttl", "--reason", "--command", "--path", "--domain", "--env", ...common],
+    grant: ["--name", "--ttl", "--reason", ...scopeOptions, ...common],
     check: ["--command", "--path", "--domain", "--env", ...common],
     list: common,
     revoke: common
@@ -142,6 +143,9 @@ function validateCommandArgs(command: string, args: readonly string[]): void {
       const value = args[index + 1];
       if (value === undefined || value.startsWith("--")) {
         throw new UsageError(`${arg} requires a value.`);
+      }
+      if (command === "grant" && scopeOptions.includes(arg) && value.trim() === "") {
+        throw new UsageError(`${arg} requires a non-blank value.`);
       }
       index += 1;
     } else {
