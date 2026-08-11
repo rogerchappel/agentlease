@@ -48,6 +48,17 @@ test("cli rejects unknown options and option-like missing values", () => {
   }
 });
 
+test("grant rejects blank scope values with field-specific usage errors", () => {
+  for (const option of ["--command", "--path", "--domain", "--env"]) {
+    for (const value of ["", " \t "]) {
+      const result = runCli(["grant", "--name", "blank", option, value]);
+      assert.equal(result.status, 2, `${option} ${JSON.stringify(value)}\n${result.stderr}`);
+      assert.equal(result.stderr, `agentlease: ${option} requires a non-blank value.\n`);
+      assert.equal(result.stdout, "");
+    }
+  }
+});
+
 test("cli accepts repeated grant scope options", () => {
   const directory = mkdtempSync(path.join(tmpdir(), "agentlease-cli-"));
   const ledgerPath = path.join(directory, "ledger.json");
@@ -60,6 +71,10 @@ test("cli accepts repeated grant scope options", () => {
       "--command", "npm run build",
       "--path", "src",
       "--path", "test",
+      "--domain", "example.com",
+      "--domain", "api.example.com",
+      "--env", "CI",
+      "--env", "NODE_ENV",
       "--ledger", ledgerPath
     ]);
     assert.equal(result.status, 0, result.stderr);
@@ -70,6 +85,8 @@ test("cli accepts repeated grant scope options", () => {
       path.resolve("src"),
       path.resolve("test")
     ]);
+    assert.deepEqual(ledger.leases[0].scope.domains, ["example.com", "api.example.com"]);
+    assert.deepEqual(ledger.leases[0].scope.env, ["CI", "NODE_ENV"]);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -145,6 +162,25 @@ test("createLease accepts an expiry at the supported Date boundary", () => {
   assert.equal(lease.expiresAt, "+275760-09-13T00:00:00.000Z");
 });
 
+test("createLease rejects blank scope values before normalization", () => {
+  const scopeFields = ["commands", "paths", "domains", "env"];
+  for (const field of scopeFields) {
+    const input = {
+      name: "blank",
+      ttl: "1h",
+      commands: [],
+      paths: [],
+      domains: [],
+      env: [],
+      [field]: [" \t "]
+    };
+    assert.throws(
+      () => createLease(input),
+      { name: "UsageError", message: `${field} must not contain blank values.` }
+    );
+  }
+});
+
 test("list and check report malformed persisted leases as ledger errors", () => {
   const directory = mkdtempSync(path.join(tmpdir(), "agentlease-malformed-"));
   const ledgerPath = path.join(directory, "ledger.json");
@@ -164,6 +200,35 @@ test("list and check report malformed persisted leases as ledger errors", () => 
       assert.equal(result.status, 1, `${args.join(" ")}\n${result.stderr}`);
       assert.equal(result.stderr, "agentlease: Invalid lease at index 0: id must be a non-empty string.\n");
       assert.equal(result.stdout, "");
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("persisted leases reject blank scope entries with stable ledger errors", () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "agentlease-blank-ledger-"));
+  const ledgerPath = path.join(directory, "ledger.json");
+  const baseLease = createLease({
+    name: "valid",
+    ttl: "1h",
+    commands: ["npm test"],
+    paths: [],
+    domains: [],
+    env: []
+  });
+
+  try {
+    for (const field of ["commands", "paths", "domains", "env"]) {
+      const lease = structuredClone(baseLease);
+      lease.scope[field] = ["  "];
+      writeFileSync(ledgerPath, JSON.stringify({ schemaVersion: 1, leases: [lease] }));
+      const result = runCli(["list", "--ledger", ledgerPath]);
+      assert.equal(result.status, 1, result.stderr);
+      assert.equal(
+        result.stderr,
+        `agentlease: Invalid lease at index 0: scope.${field} must not contain blank strings.\n`
+      );
     }
   } finally {
     rmSync(directory, { recursive: true, force: true });
