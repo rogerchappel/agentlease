@@ -93,6 +93,9 @@ function requireStringArray(value: unknown, index: number, field: string): asser
   if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string")) {
     throw invalidLease(index, `${field} must be an array of strings`);
   }
+  if (value.some((entry) => entry.trim() === "")) {
+    throw invalidLease(index, `${field} must not contain blank strings`);
+  }
 }
 
 function invalidLease(index: number, detail: string): LedgerError {

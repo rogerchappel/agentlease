@@ -13,6 +13,14 @@ function hasScope(input: GrantInput): boolean {
   );
 }
 
+function requireNonBlankScopes(input: GrantInput): void {
+  for (const field of ["commands", "paths", "domains", "env"] as const) {
+    if (input[field].some((value) => value.trim() === "")) {
+      throw new UsageError(`${field} must not contain blank values.`);
+    }
+  }
+}
+
 export function createLease(input: GrantInput): Lease {
   if (input.name.trim() === "") {
     throw new UsageError("Lease name is required.");
@@ -20,6 +28,7 @@ export function createLease(input: GrantInput): Lease {
   if (!hasScope(input)) {
     throw new UsageError("Grant at least one command, path, domain, or env key.");
   }
+  requireNonBlankScopes(input);
 
   const now = input.now ?? new Date();
   const createdAt = now.toISOString();
