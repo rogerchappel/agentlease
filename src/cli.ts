@@ -192,6 +192,8 @@ function helpText(): string {
   agentlease check [--command CMD] [--path PATH] [--domain HOST] [--env KEY] [--ledger FILE]
   agentlease list [--ledger FILE]
   agentlease revoke ID_OR_NAME [--ledger FILE]
+
+Revoke by lease ID for a precise match. Names are accepted only when unique.
 `;
 }
 
