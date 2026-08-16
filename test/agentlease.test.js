@@ -293,3 +293,73 @@ test("revoked leases deny future checks", () => {
     now: new Date("2026-01-01T00:15:00.000Z")
   }).allow, false);
 });
+
+test("revoke rejects an ambiguous name without mutating the ledger", () => {
+  const first = createLease({
+    name: "shared", ttl: "1h", commands: ["first"], paths: [], domains: [], env: []
+  });
+  const second = createLease({
+    name: "shared", ttl: "1h", commands: ["second"], paths: [], domains: [], env: []
+  });
+  const ledger = addLease(addLease(emptyLedger(), first), second);
+  const before = structuredClone(ledger);
+
+  assert.throws(
+    () => revokeLease(ledger, "shared"),
+    {
+      name: "UsageError",
+      message: 'Lease name "shared" matches 2 leases; revoke by lease ID instead.'
+    }
+  );
+  assert.deepEqual(ledger, before);
+});
+
+test("revoke accepts a unique name and an ID selects exactly one duplicate", () => {
+  const unique = createLease({
+    name: "unique", ttl: "1h", commands: ["unique"], paths: [], domains: [], env: []
+  });
+  const first = createLease({
+    name: "shared", ttl: "1h", commands: ["first"], paths: [], domains: [], env: []
+  });
+  const second = createLease({
+    name: "shared", ttl: "1h", commands: ["second"], paths: [], domains: [], env: []
+  });
+  const ledger = addLease(addLease(addLease(emptyLedger(), unique), first), second);
+  const now = new Date("2026-01-01T00:10:00.000Z");
+
+  const uniqueRevoked = revokeLease(ledger, "unique", now);
+  assert.equal(uniqueRevoked.leases.find((lease) => lease.id === unique.id)?.revokedAt, now.toISOString());
+
+  const idRevoked = revokeLease(ledger, first.id, now);
+  assert.equal(idRevoked.leases.find((lease) => lease.id === first.id)?.revokedAt, now.toISOString());
+  assert.equal(idRevoked.leases.find((lease) => lease.id === second.id)?.revokedAt, undefined);
+});
+
+test("cli reports duplicate-name ambiguity and preserves the ledger", () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "agentlease-revoke-"));
+  const ledgerPath = path.join(directory, "ledger.json");
+
+  try {
+    assert.equal(runCli(["grant", "--name", "shared", "--command", "first", "--ledger", ledgerPath]).status, 0);
+    assert.equal(runCli(["grant", "--name", "shared", "--command", "second", "--ledger", ledgerPath]).status, 0);
+    const before = readFileSync(ledgerPath, "utf8");
+
+    const ambiguous = runCli(["revoke", "shared", "--ledger", ledgerPath]);
+    assert.equal(ambiguous.status, 2, ambiguous.stderr);
+    assert.equal(
+      ambiguous.stderr,
+      'agentlease: Lease name "shared" matches 2 leases; revoke by lease ID instead.\n'
+    );
+    assert.equal(ambiguous.stdout, "");
+    assert.equal(readFileSync(ledgerPath, "utf8"), before);
+
+    const leases = JSON.parse(before).leases;
+    const precise = runCli(["revoke", leases[0].id, "--ledger", ledgerPath]);
+    assert.equal(precise.status, 0, precise.stderr);
+    const after = JSON.parse(readFileSync(ledgerPath, "utf8")).leases;
+    assert.ok(after[0].revokedAt);
+    assert.equal(after[1].revokedAt, undefined);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

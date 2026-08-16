@@ -32,13 +32,18 @@ After the package is published, this bootstrap path will be replaced by
 agentlease grant --name docs-pass --path ./docs --command "npm test" --ttl 2h
 agentlease check --command "npm test" --path ./docs/PRD.md
 agentlease list
-agentlease revoke docs-pass
+agentlease revoke lease_0123456789ab
 ```
 
 Scope options on `grant` (`--command`, `--path`, `--domain`, and `--env`) may
 be repeated to add multiple values. Each scope value must contain at least one
 non-whitespace character. Empty, whitespace-only, missing, and option-like
 values are rejected with exit code 2, as are unknown options.
+
+`revoke` accepts a lease ID or a unique lease name. Names are convenient when
+only one lease has that name; if names collide, the command exits with code 2
+without changing the ledger. Use the ID shown by `grant` or `list` as the
+precise selector.
 
 Use `--ledger path/to/ledger.json` or `AGENTLEASE_LEDGER` to choose a ledger
 outside the default `.agentlease/ledger.json`.
