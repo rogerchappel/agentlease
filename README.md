@@ -58,9 +58,11 @@ ledger-adjacent lock file, then atomically replace the ledger after writing the
 complete new JSON to a temporary file. Successfully reported mutations are
 therefore retained without exposing partial JSON to readers. Lock contention is
 retried for up to 5 seconds; after that the command fails without changing the
-ledger and reports the lock path. A process terminated while holding the lock
-may leave that `.lock` file behind; remove it only after confirming no
-`agentlease` mutation is still running.
+ledger and reports the lock path. Lock files record their owning process. If
+that process no longer exists, the next mutation safely removes the abandoned
+lock while holding a separate recovery lock, then proceeds normally. A lock
+with invalid or legacy owner metadata is not removed automatically; after the
+timeout, confirm that no `agentlease` mutation is running before removing it.
 
 ## Limitations
 
