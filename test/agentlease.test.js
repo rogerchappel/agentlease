@@ -128,6 +128,43 @@ test("concurrent CLI mutations retain every successful grant and revoke", async 
   }
 });
 
+test("mutation recovers a lock whose recorded owner no longer exists", () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "agentlease-abandoned-lock-"));
+  const ledgerPath = path.join(directory, "ledger.json");
+  const lockPath = `${ledgerPath}.lock`;
+
+  try {
+    writeFileSync(lockPath, JSON.stringify({ pid: 2_147_483_647, token: "abandoned-fixture" }));
+    const result = runCli(["grant", "--name", "recovered", "--path", "docs", "--ledger", ledgerPath]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(JSON.parse(readFileSync(ledgerPath, "utf8")).leases[0].name, "recovered");
+    assert.throws(() => readFileSync(lockPath), { code: "ENOENT" });
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("mutation times out without disturbing a lock held by a live process", () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "agentlease-live-lock-"));
+  const ledgerPath = path.join(directory, "ledger.json");
+  const lockPath = `${ledgerPath}.lock`;
+  const owner = { pid: process.pid, token: "live-fixture" };
+
+  try {
+    writeFileSync(lockPath, JSON.stringify(owner));
+    const startedAt = Date.now();
+    const result = runCli(["grant", "--name", "blocked", "--path", "docs", "--ledger", ledgerPath]);
+    const elapsed = Date.now() - startedAt;
+    assert.equal(result.status, 1);
+    assert.equal(result.stderr, `agentlease: Timed out waiting 5000ms for ledger lock: ${lockPath}\n`);
+    assert.ok(elapsed >= 5_000, `returned before the documented timeout: ${elapsed}ms`);
+    assert.deepEqual(JSON.parse(readFileSync(lockPath, "utf8")), owner);
+    assert.throws(() => readFileSync(ledgerPath), { code: "ENOENT" });
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("cli rejects TTLs that overflow milliseconds or the supported date range", () => {
   const directory = mkdtempSync(path.join(tmpdir(), "agentlease-ttl-"));
   const ledgerPath = path.join(directory, "ledger.json");

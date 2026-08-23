@@ -9,6 +9,11 @@ export const LEDGER_ENV = "AGENTLEASE_LEDGER";
 const LOCK_RETRY_MS = 25;
 const LOCK_TIMEOUT_MS = 5_000;
 
+interface LockOwner {
+  pid: number;
+  token: string;
+}
+
 export function defaultLedgerPath(): string {
   return path.join(process.cwd(), ".agentlease", "ledger.json");
 }
@@ -134,16 +139,43 @@ export async function mutateLedger(
 ): Promise<Ledger> {
   await mkdir(path.dirname(ledgerPath), { recursive: true });
   const lockPath = `${ledgerPath}.lock`;
+  const recoveryLockPath = `${lockPath}.recovery`;
   const deadline = Date.now() + LOCK_TIMEOUT_MS;
   let lock;
+  const owner: LockOwner = { pid: process.pid, token: randomUUID() };
 
   while (!lock) {
+    let recoveryLock;
     try {
-      lock = await open(lockPath, "wx");
+      recoveryLock = await open(recoveryLockPath, "wx");
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
         throw error;
       }
+    }
+
+    if (recoveryLock) {
+      try {
+        try {
+          lock = await open(lockPath, "wx");
+          await lock.writeFile(`${JSON.stringify(owner)}\n`, "utf8");
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
+            throw error;
+          }
+          if (await isAbandonedLock(lockPath)) {
+            await rm(lockPath);
+            lock = await open(lockPath, "wx");
+            await lock.writeFile(`${JSON.stringify(owner)}\n`, "utf8");
+          }
+        }
+      } finally {
+        await recoveryLock.close();
+        await rm(recoveryLockPath, { force: true });
+      }
+    }
+
+    if (!lock) {
       if (Date.now() >= deadline) {
         throw new LedgerError(`Timed out waiting ${LOCK_TIMEOUT_MS}ms for ledger lock: ${lockPath}`);
       }
@@ -158,5 +190,28 @@ export async function mutateLedger(
   } finally {
     await lock.close();
     await rm(lockPath, { force: true });
+  }
+}
+
+async function isAbandonedLock(lockPath: string): Promise<boolean> {
+  let owner: LockOwner;
+  try {
+    const candidate = JSON.parse(await readFile(lockPath, "utf8")) as Partial<LockOwner>;
+    if (!Number.isSafeInteger(candidate.pid) || (candidate.pid ?? 0) <= 0 || typeof candidate.token !== "string") {
+      return false;
+    }
+    owner = candidate as LockOwner;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return false;
+    }
+    return false;
+  }
+
+  try {
+    process.kill(owner.pid, 0);
+    return false;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "ESRCH";
   }
 }
