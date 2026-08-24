@@ -163,8 +163,8 @@ export async function mutateLedger(
           if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
             throw error;
           }
-          if (await isAbandonedLock(lockPath)) {
-            await rm(lockPath);
+          const abandonedOwner = await abandonedLockOwner(lockPath);
+          if (abandonedOwner && await removeLockIfOwned(lockPath, abandonedOwner.token)) {
             lock = await open(lockPath, "wx");
             await lock.writeFile(`${JSON.stringify(owner)}\n`, "utf8");
           }
@@ -189,29 +189,66 @@ export async function mutateLedger(
     return ledger;
   } finally {
     await lock.close();
-    await rm(lockPath, { force: true });
+    await releaseOwnedLock(lockPath, recoveryLockPath, owner.token);
   }
 }
 
-async function isAbandonedLock(lockPath: string): Promise<boolean> {
+async function releaseOwnedLock(lockPath: string, recoveryLockPath: string, token: string): Promise<void> {
+  let recoveryLock;
+  while (!recoveryLock) {
+    try {
+      recoveryLock = await open(recoveryLockPath, "wx");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY_MS));
+    }
+  }
+
+  try {
+    await removeLockIfOwned(lockPath, token);
+  } finally {
+    await recoveryLock.close();
+    await rm(recoveryLockPath, { force: true });
+  }
+}
+
+async function abandonedLockOwner(lockPath: string): Promise<LockOwner | undefined> {
   let owner: LockOwner;
   try {
     const candidate = JSON.parse(await readFile(lockPath, "utf8")) as Partial<LockOwner>;
     if (!Number.isSafeInteger(candidate.pid) || (candidate.pid ?? 0) <= 0 || typeof candidate.token !== "string") {
-      return false;
+      return undefined;
     }
     owner = candidate as LockOwner;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return false;
+      return undefined;
     }
-    return false;
+    return undefined;
   }
 
   try {
     process.kill(owner.pid, 0);
-    return false;
+    return undefined;
   } catch (error) {
-    return (error as NodeJS.ErrnoException).code === "ESRCH";
+    return (error as NodeJS.ErrnoException).code === "ESRCH" ? owner : undefined;
+  }
+}
+
+async function removeLockIfOwned(lockPath: string, token: string): Promise<boolean> {
+  try {
+    const current = JSON.parse(await readFile(lockPath, "utf8")) as Partial<LockOwner>;
+    if (current.token !== token) {
+      return false;
+    }
+    await rm(lockPath);
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return false;
+    }
+    throw error;
   }
 }
