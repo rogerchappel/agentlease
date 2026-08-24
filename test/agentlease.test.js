@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -20,6 +20,14 @@ function runCliAsync(args) {
     child.stderr.setEncoding("utf8").on("data", (chunk) => { stderr += chunk; });
     child.on("close", (status) => resolve({ status, stdout, stderr }));
   });
+}
+
+async function waitForFile(filePath) {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    if (existsSync(filePath)) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(`Timed out waiting for fixture file: ${filePath}`);
 }
 
 test("cli help and version exit successfully", () => {
@@ -123,6 +131,44 @@ test("concurrent CLI mutations retain every successful grant and revoke", async 
       assert.ok(ledger.leases.find((lease) => lease.name === `old-${index}`)?.revokedAt);
       assert.ok(ledger.leases.find((lease) => lease.name === `new-${index}`));
     }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("a superseded lock owner cannot remove the replacement lock during cleanup", async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "agentlease-lock-handoff-"));
+  const ledgerPath = path.join(directory, "ledger.json");
+  const lockPath = `${ledgerPath}.lock`;
+  const enteredPath = path.join(directory, "entered");
+  const continuePath = path.join(directory, "continue");
+  const replacement = { pid: process.pid, token: "replacement-owner" };
+  const script = `
+    import { existsSync, writeFileSync } from "node:fs";
+    import { mutateLedger } from ${JSON.stringify(new URL("../dist/index.js", import.meta.url).href)};
+    await mutateLedger(${JSON.stringify(ledgerPath)}, (ledger) => {
+      writeFileSync(${JSON.stringify(enteredPath)}, "ready");
+      while (!existsSync(${JSON.stringify(continuePath)})) {
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+      }
+      return ledger;
+    });
+  `;
+
+  try {
+    const child = spawn(process.execPath, ["--input-type=module", "--eval", script]);
+    let stderr = "";
+    child.stderr.setEncoding("utf8").on("data", (chunk) => { stderr += chunk; });
+    const completion = new Promise((resolve) => child.on("close", (status) => resolve({ status, stderr })));
+
+    await waitForFile(enteredPath);
+    unlinkSync(lockPath);
+    writeFileSync(lockPath, `${JSON.stringify(replacement)}\n`);
+    writeFileSync(continuePath, "continue");
+
+    const result = await completion;
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(readFileSync(lockPath, "utf8")), replacement);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
