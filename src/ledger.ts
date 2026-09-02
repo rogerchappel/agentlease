@@ -48,9 +48,18 @@ export function validateLedger(value: unknown): Ledger {
     throw new LedgerError("Ledger leases must be an array.");
   }
 
+  const leases = candidate.leases.map(validateLease);
+  const seenIds = new Set<string>();
+  for (const [index, lease] of leases.entries()) {
+    if (seenIds.has(lease.id)) {
+      throw invalidLease(index, `id ${JSON.stringify(lease.id)} duplicates an earlier lease`);
+    }
+    seenIds.add(lease.id);
+  }
+
   return {
     schemaVersion: LEDGER_SCHEMA_VERSION,
-    leases: candidate.leases.map(validateLease)
+    leases
   };
 }
 
