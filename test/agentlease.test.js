@@ -318,6 +318,31 @@ test("persisted leases reject blank scope entries with stable ledger errors", ()
   }
 });
 
+test("commands reject duplicate persisted lease IDs without changing the ledger", () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "agentlease-duplicate-id-"));
+  const ledgerPath = path.join(directory, "ledger.json");
+  const first = createLease({ name: "first", ttl: "1h", commands: ["first"], paths: [], domains: [], env: [] });
+  const second = { ...createLease({ name: "second", ttl: "1h", commands: ["second"], paths: [], domains: [], env: [] }), id: first.id };
+
+  try {
+    const original = `${JSON.stringify({ schemaVersion: 1, leases: [first, second] }, null, 2)}\n`;
+    writeFileSync(ledgerPath, original);
+    for (const args of [
+      ["list", "--ledger", ledgerPath],
+      ["check", "--command", "first", "--ledger", ledgerPath],
+      ["revoke", first.id, "--ledger", ledgerPath]
+    ]) {
+      const result = runCli(args);
+      assert.equal(result.status, 1, `${args.join(" ")}\n${result.stderr}`);
+      assert.equal(result.stderr, `agentlease: Invalid lease at index 1: id ${JSON.stringify(first.id)} duplicates an earlier lease.\n`);
+      assert.equal(result.stdout, "");
+      assert.equal(readFileSync(ledgerPath, "utf8"), original);
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("list and check accept a fully valid persisted lease", () => {
   const directory = mkdtempSync(path.join(tmpdir(), "agentlease-valid-"));
   const ledgerPath = path.join(directory, "ledger.json");
