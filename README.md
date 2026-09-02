@@ -45,6 +45,11 @@ only one lease has that name; if names collide, the command exits with code 2
 without changing the ledger. Use the ID shown by `grant` or `list` as the
 precise selector.
 
+Lease IDs are unique within a valid ledger. A persisted duplicate ID is treated
+as ledger corruption, so `list`, `check`, and `revoke` stop before reading or
+mutating partial state. Consequently, revoking by ID always targets exactly one
+lease.
+
 Use `--ledger path/to/ledger.json` or `AGENTLEASE_LEDGER` to choose a ledger
 outside the default `.agentlease/ledger.json`.
 
