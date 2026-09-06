@@ -14,6 +14,7 @@ format and uses semantic versioning when versioned releases are published.
 
 ### Changed
 
+- Rejected persisted leases with empty scope or an expiry before creation.
 - Clarified README security guidance.
 - Cleaned duplicate CI package-smoke fallback steps.
 - Replaced the unavailable npm install command with verified source-bootstrap instructions.
