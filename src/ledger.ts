@@ -87,6 +87,17 @@ function validateLease(value: unknown, index: number): Lease {
   requireStringArray(lease.scope.paths, index, "scope.paths");
   requireStringArray(lease.scope.domains, index, "scope.domains");
   requireStringArray(lease.scope.env, index, "scope.env");
+  if (
+    lease.scope.commands.length === 0
+    && lease.scope.paths.length === 0
+    && lease.scope.domains.length === 0
+    && lease.scope.env.length === 0
+  ) {
+    throw invalidLease(index, "scope must include at least one command, path, domain, or env value");
+  }
+  if (new Date(lease.expiresAt).getTime() < new Date(lease.createdAt).getTime()) {
+    throw invalidLease(index, "expiresAt must not precede createdAt");
+  }
   return lease as Lease;
 }
 
