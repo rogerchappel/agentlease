@@ -57,6 +57,10 @@ The ledger is validated whenever it is read. If it contains invalid JSON or a
 malformed lease, commands stop with a stable `agentlease:` error instead of
 using partial data. Repair the reported field or move the corrupt ledger aside
 and grant replacement leases; a missing ledger is recreated on the next grant.
+Each persisted lease must retain at least one command, path, domain, or
+environment scope value, and its expiry must equal or follow its creation time.
+An invariant error identifies the lease index and invalid field so the entry can
+be repaired or replaced without guessing which lease caused the failure.
 
 `grant` and `revoke` serialize updates from concurrent CLI processes with a
 ledger-adjacent lock file, then atomically replace the ledger after writing the
