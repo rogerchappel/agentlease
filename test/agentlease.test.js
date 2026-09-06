@@ -318,6 +318,70 @@ test("persisted leases reject blank scope entries with stable ledger errors", ()
   }
 });
 
+test("persisted leases reject empty scope and backwards expiry with stable ledger errors", () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "agentlease-invariant-ledger-"));
+  const ledgerPath = path.join(directory, "ledger.json");
+  const baseLease = createLease({
+    name: "valid",
+    ttl: "1h",
+    commands: ["npm test"],
+    paths: [],
+    domains: [],
+    env: [],
+    now: new Date("2026-01-01T00:00:00.000Z")
+  });
+
+  try {
+    const malformed = [
+      {
+        lease: { ...baseLease, scope: { commands: [], paths: [], domains: [], env: [] } },
+        error: "scope must include at least one command, path, domain, or env value"
+      },
+      {
+        lease: { ...baseLease, expiresAt: "2025-12-31T23:59:59.999Z" },
+        error: "expiresAt must not precede createdAt"
+      }
+    ];
+
+    for (const { lease, error } of malformed) {
+      writeFileSync(ledgerPath, JSON.stringify({ schemaVersion: 1, leases: [lease] }));
+      const result = runCli(["list", "--ledger", ledgerPath]);
+      assert.equal(result.status, 1, result.stderr);
+      assert.equal(result.stderr, `agentlease: Invalid lease at index 0: ${error}.\n`);
+      assert.equal(result.stdout, "");
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("persisted lease invariants accept nonempty scope and equal or later expiry", () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "agentlease-invariant-boundary-"));
+  const ledgerPath = path.join(directory, "ledger.json");
+  const baseLease = createLease({
+    name: "valid",
+    ttl: "1h",
+    commands: ["npm test"],
+    paths: [],
+    domains: [],
+    env: [],
+    now: new Date("2099-01-01T00:00:00.000Z")
+  });
+
+  try {
+    for (const expiresAt of [baseLease.createdAt, baseLease.expiresAt]) {
+      writeFileSync(ledgerPath, JSON.stringify({
+        schemaVersion: 1,
+        leases: [{ ...baseLease, expiresAt }]
+      }));
+      const result = runCli(["list", "--ledger", ledgerPath]);
+      assert.equal(result.status, 0, result.stderr);
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("commands reject duplicate persisted lease IDs without changing the ledger", () => {
   const directory = mkdtempSync(path.join(tmpdir(), "agentlease-duplicate-id-"));
   const ledgerPath = path.join(directory, "ledger.json");
