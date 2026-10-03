@@ -382,6 +382,22 @@ test("persisted lease invariants accept nonempty scope and equal or later expiry
   }
 });
 
+test("persisted leases reject impossible calendar dates and accept valid timestamps", () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "agentlease-calendar-date-"));
+  const ledgerPath = path.join(directory, "ledger.json");
+  const baseLease = createLease({ name: "valid", ttl: "1h", commands: ["npm test"], paths: [], domains: [], env: [], now: new Date("2026-01-01T00:00:00.000Z") });
+  try {
+    for (const [field, value] of [["createdAt", "2026-02-30T00:00:00.000Z"], ["expiresAt", "2026-02-30T01:00:00.000Z"], ["revokedAt", "2026-02-30T02:00:00.000Z"]]) {
+      writeFileSync(ledgerPath, JSON.stringify({ schemaVersion: 1, leases: [{ ...baseLease, [field]: value }] }));
+      const result = runCli(["list", "--ledger", ledgerPath]);
+      assert.equal(result.status, 1, `${field}: ${result.stderr}`);
+      assert.match(result.stderr, new RegExp(`${field} must be a valid date string`));
+    }
+    writeFileSync(ledgerPath, JSON.stringify({ schemaVersion: 1, leases: [baseLease] }));
+    assert.equal(runCli(["list", "--ledger", ledgerPath]).status, 0);
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
 test("commands reject duplicate persisted lease IDs without changing the ledger", () => {
   const directory = mkdtempSync(path.join(tmpdir(), "agentlease-duplicate-id-"));
   const ledgerPath = path.join(directory, "ledger.json");
