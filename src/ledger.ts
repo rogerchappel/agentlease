@@ -109,9 +109,20 @@ function requireString(value: unknown, index: number, field: string, allowEmpty 
 
 function requireDate(value: unknown, index: number, field: string): asserts value is string {
   requireString(value, index, field);
-  if (!Number.isFinite(new Date(value).getTime())) {
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp) || !isValidCalendarDate(value)) {
     throw invalidLease(index, `${field} must be a valid date string`);
   }
+}
+
+function isValidCalendarDate(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:[Tt ].*)?$/.exec(value);
+  if (!match) return true;
+  const [, year, month, day] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  return date.getUTCFullYear() === Number(year)
+    && date.getUTCMonth() === Number(month) - 1
+    && date.getUTCDate() === Number(day);
 }
 
 function requireStringArray(value: unknown, index: number, field: string): asserts value is string[] {
