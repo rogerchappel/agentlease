@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { addLease, checkLedger, createLease, emptyLedger, revokeLease } from "../dist/index.js";
+import { addLease, checkLedger, createLease, emptyLedger, isPathInside, revokeLease } from "../dist/index.js";
 
 function runCli(args) {
   return spawnSync(process.execPath, ["dist/cli.js", ...args], { encoding: "utf8" });
@@ -29,6 +29,16 @@ async function waitForFile(filePath) {
   }
   throw new Error(`Timed out waiting for fixture file: ${filePath}`);
 }
+
+test("path containment distinguishes dot-prefixed child names from parent traversal", () => {
+  const root = path.join(tmpdir(), "agentlease-path-root");
+
+  assert.equal(isPathInside(path.join(root, "..cache", "file"), root), true);
+  assert.equal(isPathInside(path.join(root, "..cache"), root), true);
+  assert.equal(isPathInside(path.join(root, "..", "outside"), root), false);
+  assert.equal(isPathInside(path.dirname(root), root), false);
+  assert.equal(isPathInside(root, root), true);
+});
 
 test("cli help and version exit successfully", () => {
   const help = runCli(["--help"]);

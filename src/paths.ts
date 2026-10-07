@@ -13,5 +13,5 @@ export function isPathInside(candidate: string, prefix: string): boolean {
   const resolvedPrefix = normalizeLedgerPath(prefix);
   const relative = path.relative(resolvedPrefix, resolvedCandidate);
 
-  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+  return relative === "" || (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
 }
